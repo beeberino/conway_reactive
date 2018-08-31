@@ -19,10 +19,6 @@ class World
     marked_cells.each(&:toggle!)
   end
 
-  def marked_cells
-    board.map(&:should_be_toggled?).compact
-  end
-
   def cell_at(x_coord, y_coord)
     return nil if coords_out_of_range?(x_coord, y_coord)
     board.detect do |cell|
@@ -41,6 +37,10 @@ class World
   end
 
   private
+
+  def marked_cells
+    board.map(&:should_be_toggled?).compact
+  end
 
   def coords_out_of_range?(x_coord, y_coord)
     (x_coord < 0 || x_coord >= grid.width) || (y_coord < 0 || y_coord >= grid.height)
