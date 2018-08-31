@@ -1,39 +1,37 @@
 class World
-  attr_reader :board, :dimension
+  attr_reader :board, :grid
 
-  def initialize(seed_grid)
-    @dimension = seed_grid.grid_size
-    @board = Array.new(@dimension) do |x|
-      Array.new(@dimension) do |y|
-        Cell.new(x, y, self, grid_size.live_cells.include?([x,y]))
+  def initialize(grid)
+    location = Struct.new(:x, :y)
+    @grid = grid
+    @board = [].tap do |cells|
+      0.upto(grid.width - 1) do |x|
+        0.upto(grid.height - 1) do |y|
+          cells << Cell.new(location.new(x, y), self, grid.live_cells.include?([x,y]))
+        end
       end
     end
   end
 
   def next_generation
-    marked_cells = []
-    board.flatten.each do |cell|
-      if cell.alive?
-        if ![2, 3].include?(cell.live_neighbor_count)
-          marked_cells << cell
-        end
-      else
-        if cell.live_neighbor_count == 3
-          marked_cells << cell
-        end
-      end
-    end
     marked_cells.each(&:toggle!)
+  end
+
+  def marked_cells
+    board.map(&:should_be_toggled?).compact
   end
 
   def cell_at(x_coord, y_coord)
     return nil if coords_out_of_range?(x_coord, y_coord)
-    board[x_coord][y_coord]
+    board.detect do |cell|
+      cell.x_coord == x_coord && cell.y_coord == y_coord
+    end
   end
 
   def print_board
-    board.transpose.each do |row|
-      row.each do |cell|
+    0.upto(grid.height - 1) do |y|
+      0.upto(grid.width - 1) do |x|
+        cell = cell_at(x, y)
         printf (cell.alive? ? 'X' : 'O')
       end
       puts "\n"
@@ -43,23 +41,47 @@ class World
   private
 
   def coords_out_of_range?(x_coord, y_coord)
-    (x_coord < 0 || x_coord >= dimension) || (y_coord < 0 || y_coord >= dimension)
+    (x_coord < 0 || x_coord >= grid.width) || (y_coord < 0 || y_coord >= grid.height)
   end
 end
 
-
 class Cell
-  attr_reader :x, :y, :world, :alive
+  attr_reader :location, :world, :alive
 
-  def initialize(x, y, world, alive)
-    @x = x
-    @y = y
+  def initialize(location, world, alive)
+    @location = location
     @world = world
     @alive = alive
   end
 
+  def dead?
+    !alive?
+  end
+
   def alive?
     !!alive
+  end
+
+  def should_be_toggled?
+    return self if alive? && should_be_swept?
+    return self if dead? && should_be_resurrected?
+    nil
+  end
+
+  def should_be_resurrected?
+    live_neighbor_count == 3
+  end
+
+  def x_coord
+    location.x
+  end
+
+  def y_coord
+    location.y
+  end
+
+  def should_be_swept?
+    ![2, 3].include?(live_neighbor_count)
   end
 
   def toggle!
@@ -67,11 +89,10 @@ class Cell
   end
 
   def neighbors
-    [
-        world.cell_at(x - 1, y + 1), world.cell_at(x - 1, y - 1), world.cell_at(x - 1, y),
-        world.cell_at(x, y + 1), world.cell_at(x, y - 1),
-        world.cell_at(x + 1, y + 1), world.cell_at(x + 1, y - 1), world.cell_at(x + 1, y)
-    ]
+    x_coords = (location.x - 1..location.x + 1).to_a
+    y_coords = (location.y - 1..location.y + 1).to_a
+    neighbors = x_coords.product(y_coords) - [[location.x, location.y]]
+    neighbors.map {|n| world.cell_at(n[0], n[1])}
   end
 
   def live_neighbor_count
@@ -79,13 +100,14 @@ class Cell
   end
 end
 
-grid = Struct.new(:grid_size, :live_cells)
-blinker = grid.new(5, [[2,1], [2,2], [2,3]])
-block = grid.new(4, [[1,1], [1,2], [2,1], [2,2]])
+grid = Struct.new(:width, :height, :live_cells)
+blinker = grid.new(5, 5, [[2,1], [2,2], [2,3]])
+block = grid.new(4, 4, [[1,1], [1,2], [2,1], [2,2]])
+glider = grid.new(20, 20, [[3,18], [4,17], [4,16], [3,16],[2,16]])
 
-world = World.new(blinker)
+world = World.new(glider)
 
-10.times do |step|
+20.times do |step|
   system 'clear'
   puts "Gen #{ step }"
   world.print_board
