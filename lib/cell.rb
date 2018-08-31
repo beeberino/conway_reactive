@@ -23,10 +23,6 @@ class Cell
     nil
   end
 
-  def should_be_resurrected?
-    live_neighbor_count == 3
-  end
-
   def x_coord
     location.x
   end
@@ -35,12 +31,18 @@ class Cell
     location.y
   end
 
+  def toggle!
+    @alive = !alive
+  end
+
+  private
+
   def should_be_swept?
     ![2, 3].include?(live_neighbor_count)
   end
 
-  def toggle!
-    @alive = !alive
+  def should_be_resurrected?
+    live_neighbor_count == 3
   end
 
   def neighbors
